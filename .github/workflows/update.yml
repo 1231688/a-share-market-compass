@@ -1,0 +1,75 @@
+name: Update A-share market snapshot
+
+on:
+  schedule:
+    - cron: '17 9 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: market-state-pages
+  cancel-in-progress: false
+
+jobs:
+  update-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Restore source and persistent state
+        shell: bash
+        run: |
+          rm -rf cloud-source
+          python -m zipfile -e cloud-source.zip cloud-source
+          if [ -d state ]; then rm -rf cloud-source/state && cp -R state cloud-source/state; fi
+          if [ -d public ]; then rm -rf cloud-source/public && cp -R public cloud-source/public; fi
+
+      - name: Generate and validate latest snapshot
+        env:
+          TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
+        run: python cloud-source/scripts/cloud_update.py ${{ github.event_name == 'schedule' && '--scheduled' || '' }}
+
+      - name: Save persistent state and public snapshots
+        shell: bash
+        run: |
+          rm -rf state public
+          cp -R cloud-source/state state
+          cp -R cloud-source/public public
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state public
+          if ! git diff --cached --quiet; then
+            git commit -m "Update market snapshot"
+            git push
+          fi
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload public data artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
