@@ -2,7 +2,9 @@ name: Update A-share market snapshot
 
 on:
   schedule:
+    # 北京时间 17:17 首轮更新，18:17 仅在首轮未成功时补跑。
     - cron: '17 9 * * 1-5'
+    - cron: '17 10 * * 1-5'
   workflow_dispatch:
 
 permissions:
@@ -39,9 +41,16 @@ jobs:
           if [ -d public ]; then rm -rf cloud-source/public && cp -R public cloud-source/public; fi
 
       - name: Generate and validate latest snapshot
+        shell: bash
         env:
           TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
-        run: python cloud-source/scripts/cloud_update.py ${{ github.event_name == 'schedule' && '--scheduled' || '' }}
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            if python -c 'import json, sys; from datetime import datetime; from pathlib import Path; from zoneinfo import ZoneInfo; p=Path("cloud-source/public/data/market-state.json"); m=json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}; today=datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d"); fresh=m.get("trade_date")==today and m.get("data_status")=="complete"; print(f"今天({today})完整快照已存在，跳过补跑。" if fresh else "今天尚无完整快照，继续更新。"); sys.exit(0 if fresh else 1)'; then
+              exit 0
+            fi
+          fi
+          python cloud-source/scripts/cloud_update.py ${{ github.event_name == 'schedule' && '--scheduled' || '' }}
 
       - name: Save persistent state and public snapshots
         shell: bash
