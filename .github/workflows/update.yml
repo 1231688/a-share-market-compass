@@ -40,6 +40,10 @@ jobs:
           if [ -d state ]; then rm -rf cloud-source/state && cp -R state cloud-source/state; fi
           if [ -d public ]; then rm -rf cloud-source/public && cp -R public cloud-source/public; fi
 
+      - name: Install historical backtest dependency
+        shell: bash
+        run: python -m pip install --quiet numpy
+
       - name: Generate and validate latest snapshot
         shell: bash
         env:
