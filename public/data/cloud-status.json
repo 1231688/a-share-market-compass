@@ -1,8 +1,8 @@
 {
-  "asOf": "2026-11-23",
-  "fetchedAt": "2026-11-23T11:18:20.309Z",
+  "asOf": "2026-11-24",
+  "fetchedAt": "2026-11-24T10:24:27.080Z",
   "skipped": false,
-  "summary": "2026-11-23 收盘快照已生成，状态为defense，综合分 31.31。",
+  "summary": "2026-11-24 收盘快照已生成，状态为defense，综合分 35.34。",
   "stale": false,
   "source": "GitHub Actions + Tushare Pro"
 }
